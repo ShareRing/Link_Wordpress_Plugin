@@ -1,0 +1,102 @@
+jQuery(document).ready(function($){
+    // Define onInit and onScan functions globally
+    window.onInit = function(data){
+        console.log('onInit:', data);
+        // data.qrcode contains the dynamic ShareRing link
+        var dynamicLink = data.qrcode;
+        if(dynamicLink){
+            generateCustomQRCode(dynamicLink);
+        }
+    };
+
+    window.onScan = function(data){
+        console.log('onScan:', data);
+        // Handle the scanned data as needed
+        // Example: Send data via AJAX to REST API
+        $.ajax({
+            url: sharering_link_params.rest_url,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader('X-WP-Nonce', sharering_link_params.nonce);
+            },
+            success: function(response) {
+                console.log('Data saved successfully:', response);
+                // Extract the user's name from the data.
+                var userName = data.values['name.verified'] || data.values['name'] || '';
+                // Redirect the user to the specified page.
+                if (sharering_link_params.redirect_url) {
+                    window.location.href = sharering_link_params.redirect_url + '?name=' + encodeURIComponent(userName);
+                } else {
+                    alert('Thank you for sharing your information.');
+                }
+            },
+            error: function(error) {
+                console.error('Error saving data:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+    };
+
+    function generateCustomQRCode(dynamicLink){
+        var qrContainer = $('#custom-qrcode');
+        qrContainer.empty();
+
+        // Generate the QR code with jQuery.qrcode using dynamicLink and custom settings
+        qrContainer.qrcode({
+            text: dynamicLink,
+            width: sharering_link_params.qr_code_size,
+            height: sharering_link_params.qr_code_size,
+            foreground: sharering_link_params.qr_foreground_color,
+            background: sharering_link_params.qr_background_color,
+            render: 'canvas',
+            correctLevel: 3 // High error correction level to accommodate logo
+        });
+
+        // Apply border to the custom QR code container
+        qrContainer.css({
+            'border': '10px solid ' + sharering_link_params.qr_border_color,
+            'display': 'inline-block',
+            'position': 'relative', // Ensure container is relative for logo positioning
+            'padding': '20px', // Adjust padding as needed
+            'box-sizing': 'border-box'
+        });
+
+        // Apply outer background color to the .sharering-background container
+        qrContainer.closest('.sharering-background').css({
+            'background-color': sharering_link_params.qr_outer_background_color,
+            'width': '100%', // Ensure it covers the full width
+            'height': '100%', // Ensure it covers the full height
+            'position': 'absolute', // Position it absolutely to cover the parent
+            'top': '0',
+            'left': '0',
+            'right': '0',
+            'bottom': '0',
+            'display': 'flex',
+            'justify-content': 'center',
+            'align-items': 'center'
+        });
+
+        // Embed logo if set
+        if (sharering_link_params.qr_logo_url) {
+            var logo = $('<img/>', {
+                src: sharering_link_params.qr_logo_url,
+                alt: 'QR Code Logo',
+                id: 'qr-logo-overlay'
+            });
+
+            qrContainer.append(logo);
+            logo.css({
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '20%', // Adjust size as needed
+                height: '20%', // Adjust size as needed
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none', // Ensure the logo doesn't interfere with scanning
+                borderRadius: '10%' // Optional: Add some styling
+            });
+        }
+    }
+});
